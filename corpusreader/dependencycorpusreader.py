@@ -14,10 +14,10 @@ class DependencyCorpusReader(CorpusReader):
             line = self.fileStream.next()
             line = line.rstrip()
             try:
-                freq, dependency, noun = line.split(self.separator)
+                freq, dep1, rel, dep2 = line.split(self.separator)
             except ValueError:
                 print "ValueError in line: " + line
                 continue
             else:
                 errorFlag = False
-        return int(freq), dependency, noun
+        return int(freq), dep1, rel + '#' + dep2

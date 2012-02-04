@@ -7,8 +7,9 @@ from matrix import *
 import semsimlib
 
 class DependencyMatrix(Matrix):
-    def __init__(self, instanceFile, featureFile, dependencyFilenames,
-                 instanceCutoff = 20, featureCutoff = 2, valueCutoff = 3, dryRun = True, cleanup = True):
+    def __init__(self, dependencyFilenames, instanceFile = None,
+                 featureFile = None, instanceCutoff = 20, featureCutoff = 2,
+                 valueCutoff = 3, dryRun = True, cleanup = True):
         Matrix.__init__(self, instanceFile, featureFile)
         self.dependencyFilenames = dependencyFilenames
         self.instanceCutoff = instanceCutoff

@@ -24,31 +24,42 @@ class Matrix:
         self.instanceCutoff = instanceCutoff
         self.featureCutoff = featureCutoff
         self.valueCutoff = valueCutoff
+        
+        if self.instances:
+            self.vectorList = [ {} for i in range(len(self.instances)) ]
 
-        self.vectorList = [ {} for i in range(len(self.instances)) ]
+        self.weighted = None
+        self.normalized = None
 
     def dryRun(self, stream):
         instanceCount = {}
-        for n in self.instances:
-            instanceCount[n] = 0
+        #for n in self.instances:
+        #    instanceCount[n] = 0
         featureCount = {}
-        for f in self.features:
-            featureCount[f] = 0
-        for freq,feature,instance in stream:
+        #for f in self.features:
+        #    featureCount[f] = 0
+        for freq,instance,feature in stream:
             if freq >= self.valueCutoff:
-                if self.instanceDict.has_key(instance) and self.featureDict.has_key(feature):
-                    instanceCount[instance] += 1
-                    featureCount[feature] += 1
+                #if self.instanceDict.has_key(instance) and self.featureDict.has_key(feature):
+                try:
+                    instanceCount[instance] += freq
+                except KeyError:
+                    instanceCount[instance] = freq
+                try:
+                    featureCount[feature] += freq
+                except KeyError:
+                    featureCount[feature] = freq
 
-        instances = [ i for i in self.instances if instanceCount[i] >= self.instanceCutoff ]
-        features = [ i for i in self.features if featureCount[i] >= self.featureCutoff ]
+        instances = [ i for i in instanceCount if instanceCount[i] >= self.instanceCutoff ]
+        features = [ i for i in featureCount if featureCount[i] >= self.featureCutoff ]
         self.instances = instances
         self.features = features
         self.instanceDict = createDictFromList(self.instances)
         self.featureDict = createDictFromList(self.features)
+        self.vectorList = [ {} for i in range(len(self.instances)) ]
 
     def fill(self, stream):
-        for freq,feature,instance in stream:
+        for freq,instance,feature in stream:
             if self.instanceDict.has_key(instance) and self.featureDict.has_key(feature):
                 nInstance = self.instanceDict[instance]
                 nFeature = self.featureDict[feature]
@@ -88,7 +99,7 @@ class Matrix:
     def calculateLogWeighting(self):
         for i in range(len(self.vectorList)):
             for j in self.vectorList[i]:
-                self.vectorList[i][j] = math.log(self.vectorList[i][j] + 1)
+                self.vectorList[i][j] = 1 + math.log(self.vectorList[i][j])
 
 
 # Global weighting functions
@@ -115,28 +126,39 @@ class Matrix:
 
     #logodds
     def calculateLogOdds(self):
+        try:
+            self.instanceFrequencyList
+            self.featureFrequencyList
+            self.frequencyTotal
+        except AttributeError:
+            self.__calculateSumFrequencies()
         vectorListLogOdd = [ {} for i in range(len(self.instances))]
         for i in range(len(self.vectorList)):
             for j in self.vectorList[i]:
                 k = self.vectorList[i][j]
-                l = featureFrequencyList[j] - k
-                m = instanceFrequencyList[i] - k
-                n = frequencyTotal - (k + l + m)
-                logOddValue = 2 * ( ( k * math.log(k) ) + ( l * math.log(l) ) \
-                                    + ( m * math.log(m) ) + ( n * math.log(n)) \
-                                    - ((k+l) * math.log(k+l)) - ((k+m) * math.log(k+m)) \
-                                    - ((l+n) * math.log(l+n)) - ((m+n) * math.log(m+n)) \
-                                    + ((k+l+m+n) * math.log(k+l+m+n)) )
+                l = self.featureFrequencyList[j] - k
+                m = self.instanceFrequencyList[i] - k
+                n = self.frequencyTotal - (k + l + m)
+                logOddValue = 2 * ( (k * math.log(k)) + (l * math.log(l)) \
+                                    + (m * math.log(m)) + (n * math.log(n)) \
+                                    - ((k + l) * math.log(k + l)) - ((k + m) * math.log(k + m)) \
+                                    - ((l + n) * math.log(l + n)) - ((m + n) * math.log(m + n)) \
+                                    + ((k + l + m + n) * math.log(k + l + m + n))
+                                    )
                 vectorListLogOdd[i][j] = logOddValue
         self.vectorList = vectorListLogOdd
 
     #Entropy
     def calculateEntropy(self):
+        try:
+            self.instanceFrequencyList
+        except AttributeError:
+            self.__calculateSumFrequencies()
         lognDoc = math.log(len(self.features))
         entropyInstances = [float(0) for i in range(len(self.instances))]
         for i in range(len(self.vectorList)):
             for j in self.vectorList[i]:
-                pij = self.vectorList[i][j] / instanceFrequencyList[i]
+                pij = self.vectorList[i][j] / self.instanceFrequencyList[i]
                 entropyInstances[i] += ( ( pij * math.log(pij) ) / lognDoc )
             entropyInstances[i] += 1
         for i in range(len(self.vectorList)):
@@ -148,9 +170,11 @@ class Matrix:
 # Similarity calculation
 ###########################################
 
-    def normalizeMatrix(self, normTo='cosine'):
-        #Normalize to vector length
-        if normTo == 'cosine':
+    def normalizeMatrix(self, normTo='vnorm'):
+        if not self.normalized == None:
+            raise ValueError("matrix is already normalized")
+        #normalize to vector length of one
+        if normTo == 'vnorm':
             for i in range(len(self.vectorList)):
                 sumVector = 0
                 for j in self.vectorList[i]:
@@ -158,8 +182,9 @@ class Matrix:
                 vectorNorm = math.sqrt(sumVector)
                 for j in self.vectorList[i]:
                     self.vectorList[i][j] = self.vectorList[i][j] / vectorNorm
+            self.normalized = 'vnorm'
 
-        #Normalize to 1 (probability vector feat|noun)
+        #normalize to 1 - conditional probability p(feature|instance)
         elif normTo == 'prob':
             for i in range(len(self.vectorList)):
                 sumVector = 0
@@ -167,17 +192,28 @@ class Matrix:
                     sumVector += self.vectorList[i][j]
                 for j in self.vectorList[i]:
                     self.vectorList[i][j] = self.vectorList[i][j] / float(sumVector)
+            self.normalized = 'prob'
+        else:
+            raise ValueError("normalization parameter '" + normTo + "' not supported")
 
     def calculateMostSimilar(self, instance, topN = 20, similarity = 'cosine'):
         if similarity == 'cosine':
+            if not self.normalized == 'vnorm':
+                raise ValueError("matrix should be normalized to vector norm \
+for cosine calculations")
             simFunction = calculateCosine
         elif similarity == 'skew':
-            simFunction = calculatekewDivergence
+            if not self.normalized == 'prob':
+                raise ValueError("matrix should be normalized to probabilities \
+for skew divergence calculations")
+            simFunction = calculateSkewDivergence
         elif similarity == 'JS':
+            if not self.normalized == 'prob':
+                raise ValueError("matrix should be normalized to probabilities \
+for Jensen-Shannon divergence calculations")
             simFunction = calculateJSDivergence
         else:
-            print 'unknown similarity function; using cosine..'
-            simFunction == calculateCosine
+            raise ValueError("similarity function '" + similarity + "' not implemented")
 
         nInstance = self.instanceDict[instance]
         cosineValueList = []
@@ -186,7 +222,8 @@ class Matrix:
             cosineValueList.append(cosineValue)
         sortedCosineList = [ [cosineValueList[i],i] for i in range(len(cosineValueList)) ]
         sortedCosineList.sort()
-        sortedCosineList.reverse()
+        if similarity == 'cosine':
+            sortedCosineList.reverse()
         outputList = []
         for i in range(topN):
             outputList.append([self.instances[sortedCosineList[i][1]], sortedCosineList[i][0]])
