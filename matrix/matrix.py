@@ -1,14 +1,21 @@
-# 
-# Semsim matrix class
-# Tim Van de Cruys
-#
+#!/usr/bin/env python
+
+"""matrix.py: distributional matrix superclass"""
+
+__author__      = "Tim Van de Cruys"
+__email__       = "timvdc@gmail.com"
+__status__      = "development"
 
 from util import *
 from similarityfunctions import *
 import math
 
 class Matrix:
-    def __init__(self, instanceFile, featureFile, instanceCutoff = 20, featureCutoff = 2, valueCutoff = 1):
+    def __init__(self, filenames, instanceFile, featureFile,
+                 instanceCutoff, featureCutoff, valueCutoff):
+
+        self.filenames = filenames
+
         if isinstance(instanceFile,basestring):
             self.instances = readFileAsList(instanceFile)
             self.instanceDict = createDictFromList(self.instances)
@@ -30,44 +37,6 @@ class Matrix:
 
         self.weighted = None
         self.normalized = None
-
-    def dryRun(self, stream):
-        instanceCount = {}
-        #for n in self.instances:
-        #    instanceCount[n] = 0
-        featureCount = {}
-        #for f in self.features:
-        #    featureCount[f] = 0
-        for freq,instance,feature in stream:
-            if freq >= self.valueCutoff:
-                #if self.instanceDict.has_key(instance) and self.featureDict.has_key(feature):
-                try:
-                    instanceCount[instance] += freq
-                except KeyError:
-                    instanceCount[instance] = freq
-                try:
-                    featureCount[feature] += freq
-                except KeyError:
-                    featureCount[feature] = freq
-
-        instances = [ i for i in instanceCount if instanceCount[i] >= self.instanceCutoff ]
-        features = [ i for i in featureCount if featureCount[i] >= self.featureCutoff ]
-        self.instances = instances
-        self.features = features
-        self.instanceDict = createDictFromList(self.instances)
-        self.featureDict = createDictFromList(self.features)
-        self.vectorList = [ {} for i in range(len(self.instances)) ]
-
-    def fill(self, stream):
-        for freq,instance,feature in stream:
-            if self.instanceDict.has_key(instance) and self.featureDict.has_key(feature):
-                nInstance = self.instanceDict[instance]
-                nFeature = self.featureDict[feature]
-                try:
-                    self.vectorList[nInstance][nFeature] += freq
-                except KeyError:
-                    self.vectorList[nInstance][nFeature] = freq
-
 
     def applyValueCutoff(self):
         if self.valueCutoff > 1:
