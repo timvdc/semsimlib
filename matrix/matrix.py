@@ -93,6 +93,25 @@ class Matrix:
         self.vectorList = vectorListPMI
         self.applyInstanceFeatureCutoff()
 
+    #probability (feat|instance) / prob(feat), cfr. mitchell & lapata 2008, 2010
+    def calculateConditionalProbability(self):
+        try:
+            self.instanceFrequencyList
+            self.featureFrequencyList
+            self.frequencyTotal
+        except AttributeError:
+            self.__calculateSumFrequencies()
+
+        vectorListProb = [ {} for i in range(len(self.instances))]
+        for i in range(len(self.vectorList)):
+            for j in self.vectorList[i]:
+                probValue = ((self.vectorList[i][j] *
+                              self.frequencyTotal) /
+                             (self.instanceFrequencyList[i] *
+                              self.featureFrequencyList[j]))
+                vectorListProb[i][j] = probValue
+        self.vectorList = vectorListProb
+
     #logodds
     def calculateLogOdds(self):
         try:
@@ -208,17 +227,22 @@ for Jensen-Shannon divergence calculations")
             totalValueCount = int(0)
             for i in range(len(self.vectorList)):
                 totalValueCount += len(self.vectorList[i])
-            outFile.write(str(len(self.instances)) + ' ' + str(len(self.features)) + ' ' + str(totalValueCount) + '\n')
+            outFile.write(str(len(self.instances)) + ' ' +
+                          str(len(self.features)) + ' ' +
+                          str(totalValueCount) + '\n')
             for i in range(len(self.vectorList)):
                 featList = self.vectorList[i].keys()
                 featList.sort()
                 for j in featList:
-                    outFile.write(str(j + 1) + ' ' + "%.11f " % self.vectorList[i][j])
+                    outFile.write(str(j + 1) + ' ' +
+                                  "%.11f " % self.vectorList[i][j])
                 outFile.write('\n')
         elif format == 'matlab':
             for i in range(len(self.vectorList)):
                 for j in self.vectorList[i].keys():
-                    outFile.write(str(i + 1) + '\t' + str(j + 1) + '\t' + str(self.vectorList[i][j]) + '\n') 
+                    outFile.write(str(i + 1) + '\t' +
+                                  str(j + 1) + '\t' +
+                                  str(self.vectorList[i][j]) + '\n') 
         else:
             print 'wrong output format'
         outFile.close()
