@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+import nmf
+
 """
 nmfmatrix.py: implementation of non-negative matrix
 factorization for sparse matrix (kl-divergence)
@@ -59,31 +61,34 @@ class NMFMatrix:
         for niter in range(niters):
             print 'iteration ' + str(niter + 1)
 
-            reconstruct, Q = self.__computeQ()
+            print 'reconstruct'
+            #reconstructed = self.__reconstruct()
+            reconstructed = nmf.reconstruct(self.matrix.row, self.matrix.col, self.matrix.data, self.W, self.H)
+            Q = scipy.sparse.coo_matrix((self.matrix.data / reconstructed,
+                                          (self.matrix.row,self.matrix.col)),
+                                         shape=(self.ndim,self.vdim))
+            print 'H'
             self.H = self.H * (self.W.T * Q)
             #self.H /= self.H.sum(axis=0) / self.matrix.sum(axis=0)
             #self.H /= self.H.sum(axis=0)[numpy.newaxis, :]
 
+            print 'W'
             self.W = numpy.maximum(self.W * (Q * self.H.T),1e-20)
             self.W /= self.W.sum(axis=0)[numpy.newaxis, :]
+            print 'div'
             div = numpy.sum(self.matrix.data * numpy.log(Q.data)
                             - self.matrix.data
-                            + reconstruct)
+                            + reconstructed)
             print 'div: ' + str(div)
             self.divs.append(div)
         return None
 
-    def __computeQ(self):
+    def __reconstruct(self):
         reconstruct = numpy.zeros(len(self.matrix.data))
         for i in range(len(self.matrix.row)):
-            reconstruct[i] = numpy.dot(self.W[self.matrix.row[i],:],
-                                       self.H[:,self.matrix.col[i]])
-
-        Q = self.matrix.data / reconstruct
-        mQ = scipy.sparse.coo_matrix((Q,
-                                      (self.matrix.row,self.matrix.col)),
-                                     shape=(self.ndim,self.vdim))
-        return reconstruct, Q
+           reconstruct[i] = numpy.dot(self.W[self.matrix.row[i],:],
+                                      self.H[:,self.matrix.col[i]])
+        return reconstruct
     
     def get_top_words_dim(self,ndim):
         #show list of words with highest value for particular
