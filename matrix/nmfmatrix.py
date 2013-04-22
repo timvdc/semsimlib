@@ -2,7 +2,8 @@
 
 """
 nmfmatrix.py: implementation of non-negative matrix
-factorization
+factorization for sparse matrix (kl-divergence)
+TODO: sparseness constraints
 """
 
 __author__      = "Tim Van de Cruys"
@@ -35,7 +36,8 @@ class NMFMatrix:
         
         # Initialize matrix using absolute values from gaussian
         # distribution (mean=0,std=1), shifted by 0.01 - this ought to
-        # give many small values and a limited number of large values
+        # keep most values close to zero with a limited number of
+        # large values
         self.W = numpy.absolute(
             numpy.random.randn(self.ndim, self.rdim)
             ) + 0.01
@@ -51,40 +53,56 @@ class NMFMatrix:
         # Normalize: columns sum to column-sum of original matrix
         #self.H /= self.H.sum(axis=0) / self.matrix.sum(axis=0)
 
-    def compute(self, niters=25):
         self.divs = []
+
+    def compute(self, niters=25):
         for niter in range(niters):
             print 'iteration ' + str(niter + 1)
-            reconstruct = numpy.zeros(len(self.matrix.data))
-            for i in range(len(self.matrix.row)):
-                reconstruct[i] = numpy.dot(self.W[self.matrix.row[i],:],
-                                           self.H[:,self.matrix.col[i]])
 
-            Q = self.matrix.data / reconstruct
-            mQ = scipy.sparse.coo_matrix((Q,
-                                          (self.matrix.row,self.matrix.col)),
-                                         shape=(self.ndim,self.vdim))
-            self.H = self.H * (self.W.T * mQ)
+            reconstruct, Q = self.__computeQ()
+            self.H = self.H * (self.W.T * Q)
             #self.H /= self.H.sum(axis=0) / self.matrix.sum(axis=0)
             #self.H /= self.H.sum(axis=0)[numpy.newaxis, :]
 
-            self.W = numpy.maximum(self.W * (mQ * self.H.T),1e-20)
+            self.W = numpy.maximum(self.W * (Q * self.H.T),1e-20)
             self.W /= self.W.sum(axis=0)[numpy.newaxis, :]
-            div = numpy.sum(self.matrix.data * numpy.log(Q)
+            div = numpy.sum(self.matrix.data * numpy.log(Q.data)
                             - self.matrix.data
                             + reconstruct)
             print 'div: ' + str(div)
             self.divs.append(div)
-        return reconstruct, mQ
+        return None
 
+    def __computeQ(self):
+        reconstruct = numpy.zeros(len(self.matrix.data))
+        for i in range(len(self.matrix.row)):
+            reconstruct[i] = numpy.dot(self.W[self.matrix.row[i],:],
+                                       self.H[:,self.matrix.col[i]])
+
+        Q = self.matrix.data / reconstruct
+        mQ = scipy.sparse.coo_matrix((Q,
+                                      (self.matrix.row,self.matrix.col)),
+                                     shape=(self.ndim,self.vdim))
+        return reconstruct, Q
+    
     def get_top_words_dim(self,ndim):
+        #show list of words with highest value for particular
+        #dimension
         dimList = [(self.W[i,ndim],i) for i in range(len(self.instances))]
         dimList.sort()
         dimList.reverse()
         for i in range(20):
             print self.instances[dimList[i][1]], dimList[i][0]
 
-#    def normalize():
-#    Note: row-sum of H contain p(z)
-#    Normalization would normalize rows to 1 and put
-#    sums of original H-rows in vector pz
+    def normalize(self):
+        #original row-sum of H contain p(z); normalization normalizes
+        #rows of H to 1 and puts sum of original H-rows in vector pz
+        self.pz = numpy.sum(self.H,axis=1)
+        self.H /= self.H.sum(axis=1)[:,numpy.newaxis]
+
+        #sorting in descending order
+        sortindices = self.pz.argsort()[::-1]
+        self.pz = self.pz[sortindices]
+        self.W = self.W[:,sortindices]
+        self.H = self.H[sortindices]
+        return None
