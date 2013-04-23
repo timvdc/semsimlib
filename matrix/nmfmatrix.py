@@ -61,21 +61,17 @@ class NMFMatrix:
         for niter in range(niters):
             print 'iteration ' + str(niter + 1)
 
-            print 'reconstruct'
             #reconstructed = self.__reconstruct()
             reconstructed = nmf.reconstruct(self.matrix.row, self.matrix.col, self.matrix.data, self.W, self.H)
             Q = scipy.sparse.coo_matrix((self.matrix.data / reconstructed,
                                           (self.matrix.row,self.matrix.col)),
                                          shape=(self.ndim,self.vdim))
-            print 'H'
             self.H = self.H * (self.W.T * Q)
             #self.H /= self.H.sum(axis=0) / self.matrix.sum(axis=0)
             #self.H /= self.H.sum(axis=0)[numpy.newaxis, :]
 
-            print 'W'
             self.W = numpy.maximum(self.W * (Q * self.H.T),1e-20)
             self.W /= self.W.sum(axis=0)[numpy.newaxis, :]
-            print 'div'
             div = numpy.sum(self.matrix.data * numpy.log(Q.data)
                             - self.matrix.data
                             + reconstructed)
@@ -90,13 +86,13 @@ class NMFMatrix:
                                       self.H[:,self.matrix.col[i]])
         return reconstruct
     
-    def get_top_words_dim(self,ndim):
+    def get_top_words_dim(self,ndim,nwords=20):
         #show list of words with highest value for particular
         #dimension
         dimList = [(self.W[i,ndim],i) for i in range(len(self.instances))]
         dimList.sort()
         dimList.reverse()
-        for i in range(20):
+        for i in range(nwords):
             print self.instances[dimList[i][1]], dimList[i][0]
 
     def normalize(self):
