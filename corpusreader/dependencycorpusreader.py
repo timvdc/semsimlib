@@ -20,4 +20,4 @@ class DependencyCorpusReader(CorpusReader):
                 continue
             else:
                 errorFlag = False
-        return int(freq), dep1, rel + '#' + dep2
+        return [(int(freq), dep1, rel + '#' + dep2)]
