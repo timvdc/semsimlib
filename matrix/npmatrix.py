@@ -92,5 +92,22 @@ class NPMatrix:
                  (numpy.array(indrow),
                   numpy.array(indcol))
                  ),
-                shape = (len(self.instances),len(self.features))
+                shape = (len(self.instances), len(self.features))
                 )
+
+#    this is where we'll implement the same matrix functions
+#    using scipy.sparse
+#    def..
+    def calculateMostSimilar(self, instance, topN = 20, similarity = 'cosine'):
+        if not similarity == 'cosine':
+            raise ValueError('similarity function unknown')
+        self.matrix = self.matrix.tocsr()
+        nInstance = self.instanceDict[instance]
+        cosineVector = self.matrix[nInstance].dot(self.matrix.T).todense()
+        cosineList = [(cosineVector[0,i],i) for i in range(cosineVector.shape[1])]
+        cosineList.sort()
+        cosineList.reverse()
+        outputList = []
+        for i in range(topN):
+            outputList.append([self.instances[cosineList[i][1]], cosineList[i][0]])
+        return outputList

@@ -9,10 +9,12 @@ __status__      = "development"
 from util import *
 from similarityfunctions import *
 import math
+import fileinput
 
 class Matrix:
     def __init__(self, filenames, instanceFile, featureFile,
-                 instanceCutoff, featureCutoff, valueCutoff):
+                 instanceCutoff=20, featureCutoff=2,
+                 valueCutoff=3, coo=False):
 
         self.filenames = filenames
 
@@ -38,6 +40,11 @@ class Matrix:
         self.weighted = None
         self.normalized = None
 
+        if coo == True:
+            self.readFromCoordinateFormat()
+            self.applyValueCutoff()
+            self.applyInstanceFeatureCutoff()
+            
     def applyValueCutoff(self):
         if self.valueCutoff > 1:
             print " - triple check"
@@ -57,6 +64,13 @@ class Matrix:
         self.instanceDict = createDictFromList(self.instances)
         self.featureDict = createDictFromList(self.features)
 
+    def readFromCoordinateFormat(self):
+        fileStream = fileinput.FileInput(self.filenames,
+                                         openhook=fileinput.hook_compressed)
+        for line in fileStream:
+            line = line.strip()
+            freq, ninst, nfeat = line.split(' ')
+            self.vectorList[int(ninst)][int(nfeat)] = int(freq)
 
 ###########################################
 # Weighting functions
@@ -93,7 +107,8 @@ class Matrix:
         self.vectorList = vectorListPMI
         self.applyInstanceFeatureCutoff()
 
-    #probability (feat|instance) / prob(feat), cfr. mitchell & lapata 2008, 2010
+    #probability (feat|instance) / prob(feat)
+    #cfr. mitchell & lapata (2008, 2010)
     def calculateConditionalProbability(self):
         try:
             self.instanceFrequencyList
@@ -158,7 +173,7 @@ class Matrix:
 # Similarity calculation
 ###########################################
 
-    def normalizeMatrix(self, normTo='vnorm'):
+    def normalize(self, normTo='vnorm'):
         if not self.normalized == None:
             raise ValueError("matrix is already normalized")
         #normalize to vector length of one
@@ -201,7 +216,7 @@ for skew divergence calculations")
 for Jensen-Shannon divergence calculations")
             simFunction = calculateJSDivergence
         else:
-            raise ValueError("similarity function '" + similarity + "' not implemented")
+            raise ValueError("similarity function '" + similarity + "' unknown")
 
         nInstance = self.instanceDict[instance]
         cosineValueList = []
