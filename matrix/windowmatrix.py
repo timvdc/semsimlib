@@ -14,8 +14,9 @@ class WindowMatrix(Matrix):
     def __init__(self, instances, features):
         Matrix.__init__(self, instances, features)
 
-    def fill(self, filenames, CorpusReader=PlaintextCorpusReader,
-             window, cleanup=True):
+    def fill(self, filenames, window,
+             CorpusReader = PlaintextCorpusReader,
+             cleanup = True):
         textStream = CorpusReader(filenames)
         for wordList in textStream:
             for i in range(len(wordList)):
@@ -43,7 +44,7 @@ class WindowMatrix(Matrix):
                     for c in contextList:
                         if self.featureDict.has_key(c):
                             nFeature = self.featureDict[c]
-                            self[nInstance,nFeature] += 1
+                            self.matrix[nInstance,nFeature] += 1
         if cleanup:
             self.cleanup()
         return

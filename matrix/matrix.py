@@ -48,17 +48,16 @@ class Matrix:
         return
 
     def applyValueCutoff(self, valueCutoff):
-        if self.valueCutoff > 1:
             print " - triple check"
-            for i in range(len(self.matrix)):
-                for j in self.matrix[i].keys():
-                    if self[i,j] < self.valueCutoff:
-                        self[i,j] = 0
+            for i in range(len(self.instances)):
+                for j in self.matrix.data[i].keys():
+                    if self.matrix[i,j] < valueCutoff:
+                        self.matrix[i,j] = 0
 
     def applyInstanceFeatureCutoff(self, instanceCutoff, featureCutoff):
         while True:
-            instancesCleaned = self.__cleanInstances()
-            featuresCleaned = self.__cleanFeatures()
+            instancesCleaned = self.__cleanInstances(instanceCutoff)
+            featuresCleaned = self.__cleanFeatures(featureCutoff)
             
             if instancesCleaned and featuresCleaned:
                 break
@@ -66,13 +65,13 @@ class Matrix:
         self.instanceDict = createDictFromList(self.instances)
         self.featureDict = createDictFromList(self.features)
 
-    def loadFromCoordinateFormat(self, filename):
+    def loadFromCoordinateFormat(self, filename, delimiter = ' '):
         fileStream = fileinput.FileInput(filename,
                                          openhook=fileinput.hook_compressed)
         for line in fileStream:
             line = line.strip()
-            freq, ninst, nfeat = line.split(' ')
-            self[int(ninst),int(nfeat)] = int(freq)
+            freq, ninst, nfeat = line.split(delimiter)
+            self.matrix[int(ninst),int(nfeat)] = int(freq)
 
 ###########################################
 # Weighting functions
@@ -269,14 +268,14 @@ for Jensen-Shannon divergence calculations")
 # Private functions
 ###########################################
 
-    def __cleanInstances(self):
+    def __cleanInstances(self, instanceCutoff):
         print " - instance check"
         instancesCleaned = False
         removeInstances = []
         for i in range(len(self.instances)):
-            if len(self.matrix[i]) < self.instanceCutoff:
+            if len(self.matrix.data[i]) < instanceCutoff:
                 removeInstances.append(i)
-        self.matrix = [self.matrix[i] for i in range(len(self.matrix))
+        self.matrix.data = [self.matrix.data[i] for i in range(len(self.matrix.data))
                        if not i in removeInstances]
         self.instances = [self.instances[i] for i in range(len(self.instances))
                           if not i in removeInstances]
@@ -284,16 +283,16 @@ for Jensen-Shannon divergence calculations")
             instancesCleaned = True
         return instancesCleaned
 
-    def __cleanFeatures(self):
+    def __cleanFeatures(self, featureCutoff):
         print " - feature check"
         featuresCleaned = False
         removeFeatures = {}
         featureCountDict = [float(0) for i in range(len(self.features))]
         for i in range(len(self.instances)):
-            for j in self.vectorList[i].keys():
+            for j in self.matrix.data[i].keys():
                 featureCountDict[j] += 1
         for f in range(len(featureCountDict)):
-            if featureCountDict[f] < self.featureCutoff:
+            if featureCountDict[f] < featureCutoff:
                 removeFeatures[f] = 1
         if not removeFeatures == {}:
             featureMappingList = [ i for i in range(len(self.features)) ]
@@ -308,15 +307,18 @@ for Jensen-Shannon divergence calculations")
             print " - shrinking matrix"
             for i in range(len(featureMappingList)):
                 featureMappingDict[featureMappingList[i]] = i
-            newVectorList = [ {} for i in range(len(self.instances))]
-            for i in range(len(self.vectorList)):
-                for j in self.vectorList[i].keys():
+            print len(self.instances)
+            newMatrix = dod_matrix(
+                (len(self.instances),len(self.features)),
+                dtype=np.float64)
+            for i in range(len(self.matrix.data)):
+                for j in self.matrix.data[i].keys():
                     try:
-                        newVectorList[i][featureMappingDict[j]] = self.vectorList[i][j]
+                        newMatrix[i,featureMappingDict[j]] = self.matrix[i,j]
                     except KeyError:
                         if not removeFeatures.has_key(j):
                             print 'foutje'
-            self.vectorList = newVectorList
+            self.matrix = newMatrix
         else:
             featuresCleaned = True
         return featuresCleaned

@@ -22,7 +22,7 @@ class DependencyMatrix(Matrix):
                     self.featureDict.has_key(feature)):
                     nInstance = self.instanceDict[instance]
                     nFeature = self.featureDict[feature]
-                    self[nInstance, nFeature] += freq
+                    self.matrix[nInstance, nFeature] += freq
         if cleanup:
             self.cleanup()
         return
