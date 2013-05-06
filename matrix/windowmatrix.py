@@ -11,50 +11,13 @@ from matrix import *
 from semsimlib.corpusreader import *
 
 class WindowMatrix(Matrix):
-    def __init__(self, filenames, instanceFile = None,
-                 featureFile = None, window = 5, instanceCutoff = 20,
-                 featureCutoff = 2, valueCutoff = 3,
-                 CorpusReader = PlaintextCorpusReader,
-                 dryRun = True, cleanup = True):
-        Matrix.__init__(self, filenames, instanceFile, featureFile,
-                        instanceCutoff, featureCutoff, valueCutoff)
-        self.window = window
+    def __init__(self, instances, features):
+        Matrix.__init__(self, instances, features)
 
-        if dryRun:
-            textStream = CorpusReader(self.filenames)
-            self.dryRun(textStream)
-
-        textStream = CorpusReader(self.filenames)
-        self.fill(textStream, window)
-
-        if cleanup:
-            self.applyValueCutoff()
-            self.applyInstanceFeatureCutoff()
-
-
-    def dryRun(self, stream):
-        wordCount = {}
-        for wordList in stream:
-            for i in range(len(wordList)):
-                try:
-                    wordCount[wordList[i]] += 1
-                except KeyError:
-                    wordCount[wordList[i]] = 1
-
-        instances = [ i for i in wordCount if wordCount[i] >= self.instanceCutoff ]
-        features = [ i for i in wordCount if wordCount[i] >= self.featureCutoff ]
-        if self.instances:
-            instances = [ i for i in instances if self.instanceDict.has_key(i) ]
-        if self.features:
-            features = [ i for i in features if self.features.has_key(i) ]
-        self.instances = instances
-        self.features = features
-        self.instanceDict = createDictFromList(self.instances)
-        self.featureDict = createDictFromList(self.features)
-        self.vectorList = [ {} for i in range(len(self.instances)) ]
-
-    def fill(self, stream, window):
-        for wordList in stream:
+    def fill(self, filenames, CorpusReader=PlaintextCorpusReader,
+             window, cleanup=True):
+        textStream = CorpusReader(filenames)
+        for wordList in textStream:
             for i in range(len(wordList)):
                 if self.instanceDict.has_key(wordList[i]):
                     if window == 'all':
@@ -68,7 +31,6 @@ class WindowMatrix(Matrix):
                                 start1 = i - window
                             end1 = i
                             contextList.extend(wordList[start1:end1])
-
                         if not i == len(wordList) - 1:
                             start2 = i + 1
                             if (len(wordList) - 1) <= i + window:
@@ -81,7 +43,7 @@ class WindowMatrix(Matrix):
                     for c in contextList:
                         if self.featureDict.has_key(c):
                             nFeature = self.featureDict[c]
-                            try:
-                                self.vectorList[nInstance][nFeature] += 1
-                            except KeyError:
-                                self.vectorList[nInstance][nFeature] = 1
+                            self[nInstance,nFeature] += 1
+        if cleanup:
+            self.cleanup()
+        return

@@ -6,20 +6,22 @@ __author__      = "Tim Van de Cruys"
 __email__       = "timvdc@gmail.com"
 __status__      = "development"
 
+import numpy as np
+import scipy
+from semsimlib.sparse.dod import dod_matrix
 from util import *
 from similarityfunctions import *
 import math
 import fileinput
 
 class Matrix:
-    def __init__(self, filenames, instanceFile, featureFile,
-                 instanceCutoff=20, featureCutoff=2,
-                 valueCutoff=3, coo=False):
-
-        self.filenames = filenames
+    def __init__(self, instanceFile, featureFile):
 
         if isinstance(instanceFile,basestring):
             self.instances = readFileAsList(instanceFile)
+            self.instanceDict = createDictFromList(self.instances)
+        elif isinstance(instanceFile, list):
+            self.instances = instanceFile
             self.instanceDict = createDictFromList(self.instances)
         elif instanceFile == None:
             self.instances = None
@@ -27,33 +29,33 @@ class Matrix:
         if isinstance(featureFile,basestring):
             self.features = readFileAsList(featureFile)
             self.featureDict = createDictFromList(self.features)
+        elif isinstance(featureFile,list):
+            self.features = featureFile
+            self.featureDict = createDictFromList(self.features)
         elif featureFile == None:
             self.features = None
 
-        self.instanceCutoff = instanceCutoff
-        self.featureCutoff = featureCutoff
-        self.valueCutoff = valueCutoff
-        
-        if self.instances:
-            self.vectorList = [ {} for i in range(len(self.instances)) ]
+        self.matrix = dod_matrix(
+            (len(self.instances),len(self.features)),
+            dtype=np.float64)
 
         self.weighted = None
         self.normalized = None
+    
+    def cleanup(self, instanceCutoff = 20, featureCutoff = 2, valueCutoff = 3):
+        self.applyValueCutoff(valueCutoff)
+        self.applyInstanceFeatureCutoff(instanceCutoff, featureCutoff)
+        return
 
-        if coo == True:
-            self.readFromCoordinateFormat()
-            self.applyValueCutoff()
-            self.applyInstanceFeatureCutoff()
-            
-    def applyValueCutoff(self):
+    def applyValueCutoff(self, valueCutoff):
         if self.valueCutoff > 1:
             print " - triple check"
-            for i in range(len(self.vectorList)):
-                for j in self.vectorList[i].keys():
-                    if self.vectorList[i][j] < self.valueCutoff:
-                        del self.vectorList[i][j]
+            for i in range(len(self.matrix)):
+                for j in self.matrix[i].keys():
+                    if self[i,j] < self.valueCutoff:
+                        self[i,j] = 0
 
-    def applyInstanceFeatureCutoff(self):
+    def applyInstanceFeatureCutoff(self, instanceCutoff, featureCutoff):
         while True:
             instancesCleaned = self.__cleanInstances()
             featuresCleaned = self.__cleanFeatures()
@@ -64,13 +66,13 @@ class Matrix:
         self.instanceDict = createDictFromList(self.instances)
         self.featureDict = createDictFromList(self.features)
 
-    def readFromCoordinateFormat(self):
-        fileStream = fileinput.FileInput(self.filenames,
+    def loadFromCoordinateFormat(self, filename):
+        fileStream = fileinput.FileInput(filename,
                                          openhook=fileinput.hook_compressed)
         for line in fileStream:
             line = line.strip()
             freq, ninst, nfeat = line.split(' ')
-            self.vectorList[int(ninst)][int(nfeat)] = int(freq)
+            self[int(ninst),int(nfeat)] = int(freq)
 
 ###########################################
 # Weighting functions
@@ -272,10 +274,12 @@ for Jensen-Shannon divergence calculations")
         instancesCleaned = False
         removeInstances = []
         for i in range(len(self.instances)):
-            if len(self.vectorList[i]) < self.instanceCutoff:
+            if len(self.matrix[i]) < self.instanceCutoff:
                 removeInstances.append(i)
-        self.vectorList = [ self.vectorList[i] for i in range(len(self.vectorList)) if not i in removeInstances ]
-        self.instances = [ self.instances[i] for i in range(len(self.instances)) if not i in removeInstances ]
+        self.matrix = [self.matrix[i] for i in range(len(self.matrix))
+                       if not i in removeInstances]
+        self.instances = [self.instances[i] for i in range(len(self.instances))
+                          if not i in removeInstances]
         if removeInstances == []:
             instancesCleaned = True
         return instancesCleaned
