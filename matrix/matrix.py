@@ -49,12 +49,12 @@ class Matrix:
 
     def applyValueCutoff(self, valueCutoff):
             print " - triple check"
-            for i in range(len(self.instances)):
+            for i in range(len(self.matrix.data)):
                 for j in self.matrix.data[i].keys():
                     if self.matrix[i,j] < valueCutoff:
                         self.matrix[i,j] = 0
 
-    def applyInstanceFeatureCutoff(self, instanceCutoff, featureCutoff):
+    def applyInstanceFeatureCutoff(self, instanceCutoff = 2, featureCutoff = 3):
         while True:
             instancesCleaned = self.__cleanInstances(instanceCutoff)
             featuresCleaned = self.__cleanFeatures(featureCutoff)
@@ -65,14 +65,6 @@ class Matrix:
         self.instanceDict = createDictFromList(self.instances)
         self.featureDict = createDictFromList(self.features)
 
-    def loadFromCoordinateFormat(self, filename, delimiter = ' '):
-        fileStream = fileinput.FileInput(filename,
-                                         openhook=fileinput.hook_compressed)
-        for line in fileStream:
-            line = line.strip()
-            freq, ninst, nfeat = line.split(delimiter)
-            self.matrix[int(ninst),int(nfeat)] = int(freq)
-
 ###########################################
 # Weighting functions
 ###########################################
@@ -81,10 +73,10 @@ class Matrix:
 
     # Logarithmic weighting
     def calculateLogWeighting(self):
-        for i in range(len(self.vectorList)):
-            for j in self.vectorList[i]:
-                self.vectorList[i][j] = 1 + math.log(self.vectorList[i][j])
-
+        for i in range(len(self.matrix.data)):
+            for j in self.matrix.data[i]:
+                self.matrix[i,j] = 1 + math.log(self.matrix[i,j])
+        return
 
 # Global weighting functions
 
@@ -96,17 +88,20 @@ class Matrix:
         except AttributeError:
             self.__calculateMarginalProbabilities()
 
-        vectorListPMI = [ {} for i in range(len(self.instances))]    
-        for i in range(len(self.vectorList)):
-            for j in self.vectorList[i]:
-                PMIValue = math.log( ( self.vectorList[i][j] /
+        #vectorListPMI = [ {} for i in range(len(self.instances))]    
+        for i in range(len(self.matrix.data)):
+            for j,v in self.matrix.data[i].items():
+                PMIValue = math.log( ( v /
                                        self.frequencyTotal ) /
                                      ( self.instanceProbabilityList[i] *
                                        self.featureProbabilityList[j] ) )
                 if PMIValue > 0:
-                    vectorListPMI[i][j] = PMIValue
-        self.vectorList = vectorListPMI
+                    self.matrix[i,j] = PMIValue
+                else:
+                    self.matrix[i,j] = 0
+#        self.vectorList = vectorListPMI
         self.applyInstanceFeatureCutoff()
+        return
 
     #probability (feat|instance) / prob(feat)
     #cfr. mitchell & lapata (2008, 2010)
@@ -118,15 +113,16 @@ class Matrix:
         except AttributeError:
             self.__calculateSumFrequencies()
 
-        vectorListProb = [ {} for i in range(len(self.instances))]
-        for i in range(len(self.vectorList)):
-            for j in self.vectorList[i]:
-                probValue = ((self.vectorList[i][j] *
+        #vectorListProb = [ {} for i in range(len(self.instances))]
+        for i in range(len(self.matrix.data)):
+            for j, v in self.matrix.data[i].items():
+                probValue = ((v *
                               self.frequencyTotal) /
                              (self.instanceFrequencyList[i] *
                               self.featureFrequencyList[j]))
-                vectorListProb[i][j] = probValue
-        self.vectorList = vectorListProb
+                self.matrix[i,j] = probValue
+        #self.vectorList = vectorListProb
+        return
 
     #logodds
     def calculateLogOdds(self):
@@ -136,10 +132,10 @@ class Matrix:
             self.frequencyTotal
         except AttributeError:
             self.__calculateSumFrequencies()
-        vectorListLogOdd = [ {} for i in range(len(self.instances))]
-        for i in range(len(self.vectorList)):
-            for j in self.vectorList[i]:
-                k = self.vectorList[i][j]
+        #vectorListLogOdd = [ {} for i in range(len(self.instances))]
+        for i in range(len(self.matrix.data)):
+            for j, v in self.matrix.data[i].items():
+                k = v
                 l = self.featureFrequencyList[j] - k
                 m = self.instanceFrequencyList[i] - k
                 n = self.frequencyTotal - (k + l + m)
@@ -149,8 +145,9 @@ class Matrix:
                                     - ((l + n) * math.log(l + n)) - ((m + n) * math.log(m + n)) \
                                     + ((k + l + m + n) * math.log(k + l + m + n))
                                     )
-                vectorListLogOdd[i][j] = logOddValue
-        self.vectorList = vectorListLogOdd
+                self.matrix[i,j] = logOddValue
+        #self.vectorList = vectorListLogOdd
+        return
 
     #Entropy
     def calculateEntropy(self):
@@ -160,45 +157,48 @@ class Matrix:
             self.__calculateSumFrequencies()
         lognDoc = math.log(len(self.features))
         entropyInstances = [float(0) for i in range(len(self.instances))]
-        for i in range(len(self.vectorList)):
-            for j in self.vectorList[i]:
-                pij = self.vectorList[i][j] / self.instanceFrequencyList[i]
+        for i in range(len(self.matrix.data)):
+            for j in self.matrix.data[i]:
+                pij = self.matrix[i,j] / self.instanceFrequencyList[i]
                 entropyInstances[i] += ( ( pij * math.log(pij) ) / lognDoc )
             entropyInstances[i] += 1
-        for i in range(len(self.vectorList)):
-            for j in self.vectorList[i]:
-                self.vectorList[i][j] *=  entropyInstances[i]
-
+        for i in range(len(self.matrix.data)):
+            for j in self.matrix.data[i]:
+                self.matrix[i,j] *=  entropyInstances[i]
+        return
 
 ###########################################
 # Similarity calculation
 ###########################################
 
     def normalize(self, normTo='vnorm'):
-        if not self.normalized == None:
+        if self.normalized:
             raise ValueError("matrix is already normalized")
         #normalize to vector length of one
         if normTo == 'vnorm':
-            for i in range(len(self.vectorList)):
+            for i in range(len(self.matrix.data)):
                 sumVector = 0
-                for j in self.vectorList[i]:
-                    sumVector += self.vectorList[i][j] ** 2
+                for j in self.matrix.data[i]:
+                    sumVector += self.matrix[i,j] ** 2
                 vectorNorm = math.sqrt(sumVector)
-                for j in self.vectorList[i]:
-                    self.vectorList[i][j] = self.vectorList[i][j] / vectorNorm
+                for j in self.matrix.data[i]:
+                    self.matrix[i,j] = self.matrix[i,j] / vectorNorm
             self.normalized = 'vnorm'
+            return
 
         #normalize to 1 - conditional probability p(feature|instance)
         elif normTo == 'prob':
-            for i in range(len(self.vectorList)):
+            for i in range(len(self.matrix.data)):
                 sumVector = 0
-                for j in self.vectorList[i]:
-                    sumVector += self.vectorList[i][j]
-                for j in self.vectorList[i]:
-                    self.vectorList[i][j] = self.vectorList[i][j] / float(sumVector)
+                for j in self.matrix.data[i]:
+                    sumVector += self.matrix[i,j]
+                for j in self.matrix.data[i]:
+                    self.matrix[i,j] = self.matrix[i,j] / float(sumVector)
             self.normalized = 'prob'
+            return
         else:
             raise ValueError("normalization parameter '" + normTo + "' not supported")
+        
 
     def calculateMostSimilar(self, instance, topN = 20, similarity = 'cosine'):
         if similarity == 'cosine':
@@ -221,8 +221,8 @@ for Jensen-Shannon divergence calculations")
 
         nInstance = self.instanceDict[instance]
         cosineValueList = []
-        for i in range(len(self.vectorList)):
-            cosineValue = simFunction(self.vectorList[nInstance],self.vectorList[i])
+        for i in range(len(self.matrix.data)):
+            cosineValue = simFunction(self.matrix.data[nInstance],self.matrix.data[i])
             cosineValueList.append(cosineValue)
         sortedCosineList = [ [cosineValueList[i],i] for i in range(len(cosineValueList)) ]
         sortedCosineList.sort()
@@ -234,31 +234,46 @@ for Jensen-Shannon divergence calculations")
         return outputList
 
 ###########################################
-# Output
+# Input/Output
 ###########################################
+
+    def loadFromCoordinateFormat(self, filename, delimiter = '\t', zeroBased = True):
+        fileStream = fileinput.FileInput(filename,
+                                         openhook=fileinput.hook_compressed)
+        for line in fileStream:
+            line = line.strip()
+            ninst, nfeat, freq = line.split(delimiter)
+            ninst = int(ninst)
+            nfeat = int(nfeat)
+            freq = float(freq)
+            if not zeroBased:
+                ninst -= 1
+                nfeat -= 1
+            self.matrix[ninst,nfeat] = freq
+        return
 
     def dump(self, filename, format='cluto'):
         outFile = file(filename, 'w')
         if format == 'cluto':
-            totalValueCount = int(0)
-            for i in range(len(self.vectorList)):
-                totalValueCount += len(self.vectorList[i])
+#            totalValueCount = int(0)
+#            for i in range(len(self.matrix.data)):
+#                totalValueCount += len(self.matrix.data[i])
             outFile.write(str(len(self.instances)) + ' ' +
                           str(len(self.features)) + ' ' +
-                          str(totalValueCount) + '\n')
-            for i in range(len(self.vectorList)):
-                featList = self.vectorList[i].keys()
+                          str(self.matrix.nnz) + '\n')
+            for i in range(len(self.matrix.data)):
+                featList = self.matrix.data[i].keys()
                 featList.sort()
                 for j in featList:
                     outFile.write(str(j + 1) + ' ' +
-                                  "%.11f " % self.vectorList[i][j])
+                                  "%.11f " % self.matrix[i,j])
                 outFile.write('\n')
         elif format == 'matlab':
-            for i in range(len(self.vectorList)):
-                for j in self.vectorList[i].keys():
+            for i in range(len(self.matrix.data)):
+                for j in self.matrix.data[i].keys():
                     outFile.write(str(i + 1) + '\t' +
                                   str(j + 1) + '\t' +
-                                  str(self.vectorList[i][j]) + '\n') 
+                                  str(self.matrix[i,j]) + '\n') 
         else:
             print 'wrong output format'
         outFile.close()
@@ -328,11 +343,11 @@ for Jensen-Shannon divergence calculations")
         instanceFrequencyList = [float(0) for i in range(len(self.instances))]
         featureFrequencyList = [float(0) for i in range(len(self.features))]
         frequencyTotal = float(0)
-        for i in range(len(self.vectorList)):
-            for j in self.vectorList[i]:
-                instanceFrequencyList[i] += self.vectorList[i][j]
-                featureFrequencyList[j] += self.vectorList[i][j]
-                frequencyTotal += self.vectorList[i][j]
+        for i in range(len(self.matrix.data)):
+            for j in self.matrix.data[i]:
+                instanceFrequencyList[i] += self.matrix[i,j]
+                featureFrequencyList[j] += self.matrix[i,j]
+                frequencyTotal += self.matrix[i,j]
         self.instanceFrequencyList = instanceFrequencyList
         self.featureFrequencyList = featureFrequencyList
         self.frequencyTotal = frequencyTotal
