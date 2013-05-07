@@ -279,6 +279,7 @@ for Jensen-Shannon divergence calculations")
                        if not i in removeInstances]
         self.instances = [self.instances[i] for i in range(len(self.instances))
                           if not i in removeInstances]
+        self.matrix._shape = (len(self.instances),len(self.features))
         if removeInstances == []:
             instancesCleaned = True
         return instancesCleaned
@@ -307,7 +308,6 @@ for Jensen-Shannon divergence calculations")
             print " - shrinking matrix"
             for i in range(len(featureMappingList)):
                 featureMappingDict[featureMappingList[i]] = i
-            print len(self.instances)
             newMatrix = dod_matrix(
                 (len(self.instances),len(self.features)),
                 dtype=np.float64)
@@ -316,8 +316,9 @@ for Jensen-Shannon divergence calculations")
                     try:
                         newMatrix[i,featureMappingDict[j]] = self.matrix[i,j]
                     except KeyError:
-                        if not removeFeatures.has_key(j):
-                            print 'foutje'
+                        # if j is not in featureMappingDict
+                        # then it has been removed
+                        continue
             self.matrix = newMatrix
         else:
             featuresCleaned = True
