@@ -11,6 +11,10 @@ from matrix import *
 from semsimlib.corpusreader import *
 
 class WindowMatrix(Matrix):
+    """Matrix class that extracts a window-based word space model from
+    a sentence-based stream input. Use an integer value as
+    window-value, or string value 'all' to use the entire sentence
+    """
     def __init__(self, filenames, instanceFile = None,
                  featureFile = None, window = 5, instanceCutoff = 20,
                  featureCutoff = 2, valueCutoff = 3,
@@ -76,6 +80,8 @@ class WindowMatrix(Matrix):
                             else:
                                 end2 = (i + 1) + window
                             contextList.extend(wordList[start2:end2])
+                    else:
+                        raise ValueError("Window not implemented")
                     contextList = [el for el in contextList if not el == wordList[i]]
                     nInstance = self.instanceDict[wordList[i]]
                     for c in contextList:
