@@ -6,23 +6,25 @@ __author__      = "Tim Van de Cruys"
 __email__       = "timvdc@gmail.com"
 __status__      = "development"
 
-from util import *
-from similarityfunctions import *
+from .util import *
+from .similarityfunctions import *
 import math
+import fileinput
 
 class Matrix:
     def __init__(self, filenames, instanceFile, featureFile,
-                 instanceCutoff, featureCutoff, valueCutoff):
+                 instanceCutoff=20, featureCutoff=2,
+                 valueCutoff=3, cleanup = True, coo=False):
 
         self.filenames = filenames
 
-        if isinstance(instanceFile,basestring):
+        if isinstance(instanceFile,str):
             self.instances = readFileAsList(instanceFile)
             self.instanceDict = createDictFromList(self.instances)
         elif instanceFile == None:
             self.instances = None
 
-        if isinstance(featureFile,basestring):
+        if isinstance(featureFile,str):
             self.features = readFileAsList(featureFile)
             self.featureDict = createDictFromList(self.features)
         elif featureFile == None:
@@ -31,20 +33,30 @@ class Matrix:
         self.instanceCutoff = instanceCutoff
         self.featureCutoff = featureCutoff
         self.valueCutoff = valueCutoff
-        
+        self.cleanup = cleanup
+        self.removedInstances = []
+        self.removedFeatures = []
+
         if self.instances:
             self.vectorList = [ {} for i in range(len(self.instances)) ]
 
         self.weighted = None
         self.normalized = None
 
+        if coo == True:
+            self.readFromCoordinateFormat()
+            if self.cleanup:
+                self.applyValueCutoff()
+                self.applyInstanceFeatureCutoff()
+            
     def applyValueCutoff(self):
         if self.valueCutoff > 1:
-            print " - triple check"
+            print(" - triple check")
             for i in range(len(self.vectorList)):
-                for j in self.vectorList[i].keys():
-                    if self.vectorList[i][j] < self.valueCutoff:
-                        del self.vectorList[i][j]
+                remK = [j for j in self.vectorList[i].keys() if self.vectorList[i][j] < self.valueCutoff]
+                for j in remK:
+                #    if self.vectorList[i][j] < self.valueCutoff:
+                    del self.vectorList[i][j]
 
     def applyInstanceFeatureCutoff(self):
         while True:
@@ -57,6 +69,17 @@ class Matrix:
         self.instanceDict = createDictFromList(self.instances)
         self.featureDict = createDictFromList(self.features)
 
+    def readFromCoordinateFormat(self):
+        fileStream = fileinput.FileInput(self.filenames,
+                                         #openhook=fileinput.hook_compressed
+                                         )
+        for line in fileStream:
+            line = line.strip()
+            freq, ninst, nfeat = line.split(' ')
+            try:
+                self.vectorList[int(ninst)][int(nfeat)] += float(freq)
+            except KeyError:
+                self.vectorList[int(ninst)][int(nfeat)] = float(freq)
 
 ###########################################
 # Weighting functions
@@ -91,9 +114,33 @@ class Matrix:
                 if PMIValue > 0:
                     vectorListPMI[i][j] = PMIValue
         self.vectorList = vectorListPMI
-        self.applyInstanceFeatureCutoff()
+        if self.cleanup:
+            self.applyInstanceFeatureCutoff()
 
-    #probability (feat|instance) / prob(feat), cfr. mitchell & lapata 2008, 2010
+    def calculateLMI(self):
+        try:
+            self.instanceProbabilityList
+            self.featureProbabilityList
+        except AttributeError:
+            self.__calculateMarginalProbabilities()
+
+        vectorListLMI = [ {} for i in range(len(self.instances))]
+        for i in range(len(self.vectorList)):
+            for j in self.vectorList[i]:
+                LMIValue = ( (self.vectorList[i][j] / self.frequencyTotal) *
+                             math.log( ( self.vectorList[i][j] /
+                                         self.frequencyTotal ) /
+                                       ( self.instanceProbabilityList[i] *
+                                         self.featureProbabilityList[j] ) ) )
+                if LMIValue > 0:
+                    vectorListLMI[i][j] = LMIValue
+        self.vectorList = vectorListLMI
+        if self.cleanup:
+            self.applyInstanceFeatureCutoff()
+
+
+    #probability (feat|instance) / prob(feat)
+    #cfr. mitchell & lapata (2008, 2010)
     def calculateConditionalProbability(self):
         try:
             self.instanceFrequencyList
@@ -158,7 +205,7 @@ class Matrix:
 # Similarity calculation
 ###########################################
 
-    def normalizeMatrix(self, normTo='vnorm'):
+    def normalize(self, normTo='vnorm'):
         if not self.normalized == None:
             raise ValueError("matrix is already normalized")
         #normalize to vector length of one
@@ -201,7 +248,7 @@ for skew divergence calculations")
 for Jensen-Shannon divergence calculations")
             simFunction = calculateJSDivergence
         else:
-            raise ValueError("similarity function '" + similarity + "' not implemented")
+            raise ValueError("similarity function '" + similarity + "' unknown")
 
         nInstance = self.instanceDict[instance]
         cosineValueList = []
@@ -216,6 +263,9 @@ for Jensen-Shannon divergence calculations")
         for i in range(topN):
             outputList.append([self.instances[sortedCosineList[i][1]], sortedCosineList[i][0]])
         return outputList
+
+    def calculateSimilarityPair(self,word1,word2):
+        return calculateCosine(self.vectorList[self.instanceDict[word1]], self.vectorList[self.instanceDict[word2]])
 
 ###########################################
 # Output
@@ -244,7 +294,7 @@ for Jensen-Shannon divergence calculations")
                                   str(j + 1) + '\t' +
                                   str(self.vectorList[i][j]) + '\n') 
         else:
-            print 'wrong output format'
+            print('wrong output format')
         outFile.close()
 
 
@@ -253,12 +303,13 @@ for Jensen-Shannon divergence calculations")
 ###########################################
 
     def __cleanInstances(self):
-        print " - instance check"
+        print(" - instance check")
         instancesCleaned = False
         removeInstances = []
         for i in range(len(self.instances)):
             if len(self.vectorList[i]) < self.instanceCutoff:
                 removeInstances.append(i)
+                self.removedInstances.append(self.instances[i])
         self.vectorList = [ self.vectorList[i] for i in range(len(self.vectorList)) if not i in removeInstances ]
         self.instances = [ self.instances[i] for i in range(len(self.instances)) if not i in removeInstances ]
         if removeInstances == []:
@@ -266,7 +317,7 @@ for Jensen-Shannon divergence calculations")
         return instancesCleaned
 
     def __cleanFeatures(self):
-        print " - feature check"
+        print(" - feature check")
         featuresCleaned = False
         removeFeatures = {}
         featureCountDict = [float(0) for i in range(len(self.features))]
@@ -276,17 +327,18 @@ for Jensen-Shannon divergence calculations")
         for f in range(len(featureCountDict)):
             if featureCountDict[f] < self.featureCutoff:
                 removeFeatures[f] = 1
+                self.removedFeatures.append(self.features[f])
         if not removeFeatures == {}:
             featureMappingList = [ i for i in range(len(self.features)) ]
             featureMappingDict = {}
             self.features = [ self.features[i]
                               for i in range(len(self.features))
-                              if not removeFeatures.has_key(i) ]
+                              if not i in removeFeatures ]
             featureMappingList = [ featureMappingList[i]
                                    for i in range(len(featureMappingList))
-                                   if not removeFeatures.has_key(i) ]
+                                   if not i in removeFeatures ]
 
-            print " - shrinking matrix"
+            print(" - shrinking matrix")
             for i in range(len(featureMappingList)):
                 featureMappingDict[featureMappingList[i]] = i
             newVectorList = [ {} for i in range(len(self.instances))]
@@ -295,8 +347,8 @@ for Jensen-Shannon divergence calculations")
                     try:
                         newVectorList[i][featureMappingDict[j]] = self.vectorList[i][j]
                     except KeyError:
-                        if not removeFeatures.has_key(j):
-                            print 'foutje'
+                        if not j in removeFeatures:
+                            print('foutje')
             self.vectorList = newVectorList
         else:
             featuresCleaned = True

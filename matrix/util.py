@@ -1,6 +1,6 @@
 def readFileAsList(inputFile):
     instanceList = []
-    for line in file(inputFile):
+    for line in open(inputFile):
         line = line.rstrip()
         instanceList.append(line)
     return instanceList

@@ -7,10 +7,14 @@ __email__       = "timvdc@gmail.com"
 __status__      = "development"
 
 import semsimlib
-from matrix import *
+from .matrix import *
 from semsimlib.corpusreader import *
 
 class WindowMatrix(Matrix):
+    """Matrix class that extracts a window-based word space model from
+    a sentence-based stream input. Use an integer value as
+    window-value, or string value 'all' to use the entire sentence
+    """
     def __init__(self, filenames, instanceFile = None,
                  featureFile = None, window = 5, instanceCutoff = 20,
                  featureCutoff = 2, valueCutoff = 3,
@@ -44,9 +48,9 @@ class WindowMatrix(Matrix):
         instances = [ i for i in wordCount if wordCount[i] >= self.instanceCutoff ]
         features = [ i for i in wordCount if wordCount[i] >= self.featureCutoff ]
         if self.instances:
-            instances = [ i for i in instances if self.instanceDict.has_key(i) ]
+            instances = [ i for i in instances if i in self.instanceDict ]
         if self.features:
-            features = [ i for i in features if self.features.has_key(i) ]
+            features = [ i for i in features if i in self.features ]
         self.instances = instances
         self.features = features
         self.instanceDict = createDictFromList(self.instances)
@@ -56,7 +60,7 @@ class WindowMatrix(Matrix):
     def fill(self, stream, window):
         for wordList in stream:
             for i in range(len(wordList)):
-                if self.instanceDict.has_key(wordList[i]):
+                if wordList[i] in self.instanceDict:
                     if window == 'all':
                         contextList = wordList
                     elif type(window) == int:
@@ -76,10 +80,12 @@ class WindowMatrix(Matrix):
                             else:
                                 end2 = (i + 1) + window
                             contextList.extend(wordList[start2:end2])
+                    else:
+                        raise ValueError("Window not implemented")
                     contextList = [el for el in contextList if not el == wordList[i]]
                     nInstance = self.instanceDict[wordList[i]]
                     for c in contextList:
-                        if self.featureDict.has_key(c):
+                        if c in self.featureDict:
                             nFeature = self.featureDict[c]
                             try:
                                 self.vectorList[nInstance][nFeature] += 1

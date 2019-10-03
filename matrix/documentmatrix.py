@@ -7,7 +7,7 @@ __email__       = "timvdc@gmail.com"
 __status__      = "development"
 
 import semsimlib
-from matrix import *
+from .matrix import *
 from semsimlib.corpusreader import PlaintextCorpusReader
 
 class DocumentMatrix(Matrix):

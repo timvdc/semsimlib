@@ -7,7 +7,7 @@ __email__ = "timvdc@gmail.com"
 __status__ = "development"
 
 import semsimlib
-from matrix import *
+from .matrix import *
 from semsimlib.corpusreader import *
 
 class DependencyMatrix(Matrix):
@@ -33,8 +33,9 @@ class DependencyMatrix(Matrix):
     def dryRun(self, stream):
         instanceCount = {}
         featureCount = {}
-        for freq,instance,feature in stream:
-            if freq >= self.valueCutoff:
+        for tripleList in stream:
+            for freq,instance,feature in tripleList:
+#                if freq >= self.valueCutoff:
                 try:
                     instanceCount[instance] += freq
                 except KeyError:
@@ -44,24 +45,27 @@ class DependencyMatrix(Matrix):
                 except KeyError:
                     featureCount[feature] = freq
 
-        instances = [ i for i in instanceCount if instanceCount[i] >= self.instanceCutoff ]
-        features = [ i for i in featureCount if featureCount[i] >= self.featureCutoff ]
+        instances = [i for i in instanceCount if instanceCount[i] >= self.instanceCutoff]
+        features = [i for i in featureCount if featureCount[i] >= self.featureCutoff]
+        #TODO is this correct ?
         if self.instances:
-            instances = [ i for i in instances if self.instanceDict.has_key(i) ]
+            instances = [i for i in instances if i in self.instanceDict]
         if self.features:
-            features = [ i for i in features if self.features.has_key(i) ]
+            features = [i for i in features if i in self.featureDict]
         self.instances = instances
         self.features = features
         self.instanceDict = createDictFromList(self.instances)
         self.featureDict = createDictFromList(self.features)
-        self.vectorList = [ {} for i in range(len(self.instances)) ]
+        self.vectorList = [{} for i in range(len(self.instances))]
 
     def fill(self, stream):
-        for freq,instance,feature in stream:
-            if self.instanceDict.has_key(instance) and self.featureDict.has_key(feature):
-                nInstance = self.instanceDict[instance]
-                nFeature = self.featureDict[feature]
-                try:
-                    self.vectorList[nInstance][nFeature] += freq
-                except KeyError:
-                    self.vectorList[nInstance][nFeature] = freq
+        for tripleList in stream:
+            for freq,instance,feature in tripleList:
+                if (instance in self.instanceDict and
+                    feature in self.featureDict):
+                    nInstance = self.instanceDict[instance]
+                    nFeature = self.featureDict[feature]
+                    try:
+                        self.vectorList[nInstance][nFeature] += freq
+                    except KeyError:
+                        self.vectorList[nInstance][nFeature] = freq
