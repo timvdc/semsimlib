@@ -1,4 +1,4 @@
-from corpusreader import *
+from .corpusreader import *
 
 class DependencyCorpusReader(CorpusReader):
     def __init__(self, fileids, separator='#'):
@@ -11,13 +11,13 @@ class DependencyCorpusReader(CorpusReader):
     def next(self):
         errorFlag = True
         while errorFlag:
-            line = self.fileStream.next()
+            line = self.fileStream.__next__()
             line = line.rstrip()
             try:
                 freq, dep1, rel, dep2 = line.split(self.separator)
             except ValueError:
-                print "ValueError in line: " + line
+                print("ValueError in line: " + line)
                 continue
             else:
                 errorFlag = False
-        return int(freq), dep1, rel + '#' + dep2
+        return [(int(freq), dep1, rel + '#' + dep2)]

@@ -1,4 +1,4 @@
-from util import *
+from .util import *
 import fileinput
 
 class CorpusReader:
@@ -7,7 +7,7 @@ class CorpusReader:
 #            raise AssertionError('root has to be string')
 #        self._root = root
         
-        if isinstance(fileids, basestring):
+        if isinstance(fileids, str):
             fileids = [ os.path.abspath(fileids) ]
 
         elif isinstance(fileids, list):
@@ -18,5 +18,5 @@ class CorpusReader:
         self._fileids = fileids
 
         self.fileStream = fileinput.FileInput(self._fileids,
-                                               openhook=fileinput.hook_compressed)
+                                              openhook=fileinput.hook_compressed)
 

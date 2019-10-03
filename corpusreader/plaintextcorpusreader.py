@@ -1,4 +1,4 @@
-from corpusreader import *
+from .corpusreader import *
 
 class PlaintextCorpusReader(CorpusReader):
     def __init__(self, fileids):
@@ -7,8 +7,12 @@ class PlaintextCorpusReader(CorpusReader):
     def __iter__(self):
         return self
 
-    def next(self):
-        line = self.fileStream.next()
-        line = line.rstrip()
-        words = line.split(' ')
-        return words
+    def __next__(self):
+        try:
+            line = self.fileStream.__next__()
+        except UnicodeDecodeError:
+            return []
+        else:
+            line = line.rstrip()
+            words = line.split(' ')
+            return words
