@@ -90,7 +90,7 @@ class NMFMatrix:
                                       self.H[:,self.matrix.col[i]])
         return reconstruct
     
-    def get_top_words_dim(self,ndim,nwords=20):
+    def getTopWordsDim(self,ndim,nwords=20):
         #show list of words with highest value for particular
         #dimension
         dimList = [(self.W[i,ndim],i) for i in range(len(self.instances))]
@@ -98,15 +98,6 @@ class NMFMatrix:
         dimList.reverse()
         for i in range(nwords):
             print(self.instances[dimList[i][1]], dimList[i][0])
-
-    def get_top_words_feat_dim(self,ndim,nwords=20):
-        #show list of words with highest value for particular
-        #dimension
-        dimList = [(self.H.T[i,ndim],i) for i in range(len(self.features))]
-        dimList.sort()
-        dimList.reverse()
-        for i in range(nwords):
-            print(self.features[dimList[i][1]], dimList[i][0])
 
     def normalize(self):
         #original row-sum of H contain p(z); normalization normalizes
@@ -119,4 +110,20 @@ class NMFMatrix:
         self.pz = self.pz[sortindices]
         self.W = self.W[:,sortindices]
         self.H = self.H[sortindices]
+        Wnorm = numpy.zeros((self.ndim, self.rdim))
+        for i in range(self.ndim):
+            Wnorm[i] = self.W[i] / numpy.linalg.norm(self.W[i])
+        self.Wnorm = Wnorm
         return None
+
+    def calculateMostSimilar(self, instance, topN = 20):
+        if self.Wnorm == []:
+            raise ValueError('make sure to normalize NMF result')
+        resultVector = numpy.dot(self.Wnorm[self.instanceDict[instance]],self.Wnorm.T)
+        sortedCosineList = [ [resultVector[i],i] for i in range(len(resultVector)) ]
+        sortedCosineList.sort()
+        sortedCosineList.reverse()
+        outputList = []
+        for i in range(topN):
+            outputList.append([self.instances[sortedCosineList[i][1]], sortedCosineList[i][0]])
+        return outputList
