@@ -47,11 +47,10 @@ class DependencyMatrix(Matrix):
 
         instances = [i for i in instanceCount if instanceCount[i] >= self.instanceCutoff]
         features = [i for i in featureCount if featureCount[i] >= self.featureCutoff]
-        #TODO is this correct ?
         if self.instances:
-            instances = [i for i in instances if i in self.instanceDict]
+            instances = [i for i in instances if i in self.instances]
         if self.features:
-            features = [i for i in features if i in self.featureDict]
+            features = [i for i in features if i in self.features]
         self.instances = instances
         self.features = features
         self.instanceDict = createDictFromList(self.instances)

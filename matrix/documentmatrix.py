@@ -44,7 +44,7 @@ class DocumentMatrix(Matrix):
 
         instances = [ i for i in wordCount if wordCount[i] >= self.instanceCutoff ]
         if self.instances:
-            instances = [ i for i in instances if self.instanceDict.has_key(i) ]
+            instances = [ i for i in instances if i in self.instanceDict ]
         self.instances = instances
         self.instanceDict = createDictFromList(self.instances)
         self.features = []
@@ -56,7 +56,7 @@ class DocumentMatrix(Matrix):
             self.features.append(docCount)
             nFeature = docCount
             for i in range(len(wordList)):
-                if self.instanceDict.has_key(wordList[i]):
+                if wordList[i] in self.instanceDict:
                     nInstance = self.instanceDict[wordList[i]]
                     try:
                         self.vectorList[nInstance][nFeature] += 1

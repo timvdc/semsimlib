@@ -14,7 +14,7 @@ import fileinput
 class Matrix:
     def __init__(self, filenames, instanceFile, featureFile,
                  instanceCutoff=20, featureCutoff=2,
-                 valueCutoff=3, cleanup = True, coo=False):
+                 valueCutoff=3, coo=False):
 
         self.filenames = filenames
 
@@ -33,9 +33,6 @@ class Matrix:
         self.instanceCutoff = instanceCutoff
         self.featureCutoff = featureCutoff
         self.valueCutoff = valueCutoff
-        self.cleanup = cleanup
-        self.removedInstances = []
-        self.removedFeatures = []
 
         if self.instances:
             self.vectorList = [ {} for i in range(len(self.instances)) ]
@@ -45,9 +42,9 @@ class Matrix:
 
         if coo == True:
             self.readFromCoordinateFormat()
-            if self.cleanup:
-                self.applyValueCutoff()
-                self.applyInstanceFeatureCutoff()
+            self.applyValueCutoff()
+            self.applyInstanceFeatureCutoff()
+
             
     def applyValueCutoff(self):
         if self.valueCutoff > 1:
@@ -114,8 +111,7 @@ class Matrix:
                 if PMIValue > 0:
                     vectorListPMI[i][j] = PMIValue
         self.vectorList = vectorListPMI
-        if self.cleanup:
-            self.applyInstanceFeatureCutoff()
+        self.applyInstanceFeatureCutoff()
 
     def calculateLMI(self):
         try:
@@ -135,8 +131,7 @@ class Matrix:
                 if LMIValue > 0:
                     vectorListLMI[i][j] = LMIValue
         self.vectorList = vectorListLMI
-        if self.cleanup:
-            self.applyInstanceFeatureCutoff()
+        self.applyInstanceFeatureCutoff()
 
 
     #probability (feat|instance) / prob(feat)
@@ -281,7 +276,7 @@ for Jensen-Shannon divergence calculations")
                           str(len(self.features)) + ' ' +
                           str(totalValueCount) + '\n')
             for i in range(len(self.vectorList)):
-                featList = self.vectorList[i].keys()
+                featList = list(self.vectorList[i].keys())
                 featList.sort()
                 for j in featList:
                     outFile.write(str(j + 1) + ' ' +
@@ -309,7 +304,6 @@ for Jensen-Shannon divergence calculations")
         for i in range(len(self.instances)):
             if len(self.vectorList[i]) < self.instanceCutoff:
                 removeInstances.append(i)
-                self.removedInstances.append(self.instances[i])
         self.vectorList = [ self.vectorList[i] for i in range(len(self.vectorList)) if not i in removeInstances ]
         self.instances = [ self.instances[i] for i in range(len(self.instances)) if not i in removeInstances ]
         if removeInstances == []:
@@ -327,7 +321,6 @@ for Jensen-Shannon divergence calculations")
         for f in range(len(featureCountDict)):
             if featureCountDict[f] < self.featureCutoff:
                 removeFeatures[f] = 1
-                self.removedFeatures.append(self.features[f])
         if not removeFeatures == {}:
             featureMappingList = [ i for i in range(len(self.features)) ]
             featureMappingDict = {}
