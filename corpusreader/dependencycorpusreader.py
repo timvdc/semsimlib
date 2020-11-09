@@ -8,10 +8,10 @@ class DependencyCorpusReader(CorpusReader):
     def __iter__(self):
         return self
 
-    def next(self):
+    def __next__(self):
         errorFlag = True
         while errorFlag:
-            line = self.fileStream.__next__()
+            line = next(self.fileStream)
             line = line.rstrip()
             try:
                 freq, dep1, rel, dep2 = line.split(self.separator)

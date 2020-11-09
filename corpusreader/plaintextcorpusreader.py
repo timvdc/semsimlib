@@ -8,11 +8,7 @@ class PlaintextCorpusReader(CorpusReader):
         return self
 
     def __next__(self):
-        try:
-            line = self.fileStream.__next__()
-        except UnicodeDecodeError:
-            return []
-        else:
-            line = line.rstrip()
-            words = line.split(' ')
-            return words
+        line = next(self.fileStream)
+        line = line.rstrip()
+        words = line.split(' ')
+        return words

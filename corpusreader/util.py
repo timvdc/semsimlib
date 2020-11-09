@@ -2,7 +2,7 @@ import os
 import fnmatch
 
 def find_corpus_fileids(root, regexp):
-    if isinstance(root, basestring):
+    if isinstance(root, str):
         items = []
         for dirname, subdirs, fileids in os.walk(root):
             items.extend([os.path.abspath(os.path.join(dirname, fileid))

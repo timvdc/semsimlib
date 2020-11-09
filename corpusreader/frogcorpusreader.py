@@ -10,10 +10,10 @@ class FrogCorpusReader(CorpusReader):
     def __iter__(self):
         return self
 
-    def next(self):
+    def __next__(self):
         sentenceList = []
         while True:
-            line = self.fileStream.next()
+            line = next(self.fileStream)
             line = line.rstrip()
             if not line:
                 return sentenceList
