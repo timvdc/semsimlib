@@ -40,7 +40,7 @@ class WindowTensor3(Tensor3):
         mode1_count = {}
         wordCount = {}
         for el_mode1, wordList in stream:
-            print(el_mode1,wordList)
+            #print(el_mode1,wordList)
             try:
                 mode1_count[el_mode1] += 1
             except KeyError:
@@ -99,11 +99,11 @@ class WindowTensor3(Tensor3):
                             raise ValueError("Window not implemented")
                         contextList = [el for el in contextList if not el == wordList[i]]
                         nInstance2 = self.instance2Dict[wordList[i]]
-                        print('a', wordList[i], contextList)
+                        #print('a', wordList[i], contextList)
                         for c in contextList:
                             if c in self.instance3Dict:
                                 nInstance3 = self.instance3Dict[c]
-                                print(nInstance1, nInstance2, nInstance3)
+                                #print(nInstance1, nInstance2, nInstance3)
                                 try:
                                     self.tensorDict[nInstance1][nInstance2][nInstance3] += 1
                                 except KeyError:
