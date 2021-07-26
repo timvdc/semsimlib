@@ -8,7 +8,7 @@ __status__      = "development"
 
 from semsimlib.matrix.util import *
 #from .similarityfunctions import *
-#import math
+import math
 #import fileinput
 
 class Tensor3:
@@ -60,50 +60,52 @@ class Tensor3:
                     valueList.append(self.tensorDict[i][j][k])
         return [coordList1, coordList2, coordList3], valueList
 
-    # def applyValueCutoff(self):
-    #     if self.valueCutoff > 1:
-    #         print(" - triple check")
-    #         newTensorDict = {}
-    #         for i in self.tensorDict:
-    #             for j in self.tensorDict[i]:
-    #                 for k in self.tensorDict[i][j]:
-    #                     if self.tensorDict[i][j][k] >= self.valueCutoff:
-    #                         try:
-    #                             newTensorDict[i][j][k] = self.tensorDict[i][j][k]
-    #                         except KeyError:
-    #                             try:
-    #                                 newTensorDict[i][j] = {}
-    #                                 newTensorDict[i][j][k] = self.tensorDict[i][j][k]
-    #                             except KeyError:
-    #                                 newTensorDict[i] = {}
-    #                                 newTensorDict[i][j] = {}
-    #                                 newTensorDict[i][j][k] = self.tensorDict[i][j][k]
+    def applyValueCutoff(self):
+        if self.valueCutoff > 1:
+            print(" - triple check")
+            newTensorDict = {}
+            for i in self.tensorDict:
+                for j in self.tensorDict[i]:
+                    for k in self.tensorDict[i][j]:
+                        if self.tensorDict[i][j][k] >= self.valueCutoff:
+                            try:
+                                newTensorDict[i][j][k] = self.tensorDict[i][j][k]
+                            except KeyError:
+                                try:
+                                    newTensorDict[i][j] = {}
+                                    newTensorDict[i][j][k] = self.tensorDict[i][j][k]
+                                except KeyError:
+                                    newTensorDict[i] = {}
+                                    newTensorDict[i][j] = {}
+                                    newTensorDict[i][j][k] = self.tensorDict[i][j][k]
 
-    #         self.tensorDict = newTensorDict
+            self.tensorDict = newTensorDict
 
     # def applyInstance123Cutoff(self):
     #     while True:
     #         instances1Cleaned = self.__cleanInstances1()
-    #         instances2Cleaned = self.__cleanInstances2()
-    #         instances3Cleaned = self.__cleanInstances3()
+    #         #instances2Cleaned = self.__cleanInstances2()
+    #         #instances3Cleaned = self.__cleanInstances3()
 
             
-    #         if instances1Cleaned and instances2Cleaned and instances3Cleaned:
+    #         if instances1Cleaned: #and instances2Cleaned and instances3Cleaned:
     #             break
 
     #     self.instance1Dict = createDictFromList(self.instances1)
-    #     self.instance2Dict = createDictFromList(self.instances2)
-    #     self.instance3Dict = createDictFromList(self.instances3)
+    #     #self.instance2Dict = createDictFromList(self.instances2)
+    #     #self.instance3Dict = createDictFromList(self.instances3)
 
-    # def self.__cleanInstances1():
+    # def __cleanInstances1(self):
     #     print(" - instance1 check")
     #     featuresCleaned = False
     #     removeFeatures = {}
     #     featureCountDict = [float(0) for i in range(len(self.instances1))]
-    #     for i in self.tensorDict.keys()
-    #             featureCountDict[i] += 1
+    #     for i in self.tensorDict.keys():
+    #         for j in self.tensorDict[i].keys():
+    #             for k in self.tensorDict[i][j].keys():
+    #                 featureCountDict[i] += 1
     #     for f in range(len(featureCountDict)):
-    #         if featureCountDict[f] < self.featureCutoff:
+    #         if featureCountDict[f] < self.instance1Cutoff:
     #             removeFeatures[f] = 1
     #     if not removeFeatures == {}:
     #         featureMappingList = [ i for i in range(len(self.instances1)) ]
@@ -118,16 +120,120 @@ class Tensor3:
     #         print(" - shrinking matrix")
     #         for i in range(len(featureMappingList)):
     #             featureMappingDict[featureMappingList[i]] = i
-    #         newVectorList = [ {} for i in range(len(self.instances))]
+    #         #newVectorList = [ {} for i in range(len(self.instances))]
     #         newTensorDict = {}
-    #         for i in range(len(self.instances)):
-    #             for j in self.vectorList[i].keys():
-    #                 try:
-    #                     newVectorList[i][featureMappingDict[j]] = self.vectorList[i][j]
-    #                 except KeyError:
-    #                     if not j in removeFeatures:
-    #                         print('foutje')
-    #         self.vectorList = newVectorList
+    #         for i in self.tensorDict.keys():
+    #             for j in self.tensorDict[i].keys():
+    #                 for k in self.tensorDict[i][j].keys():
+    #                     if not i in removeFeatures:
+    #                         newTensorDict[featureMappingDict[i]][j][k] = self.tensorDict[i][j][k]
+    #                 #except KeyError:
+    #                 #    if not j in removeFeatures:
+    #                 #        print('foutje')
+    #         self.tensorDict = newTensorDict
     #     else:
     #         featuresCleaned = True
     #     return featuresCleaned
+
+# Local weighting functions
+
+    # Logarithmic weighting
+    def calculateLogWeighting(self):
+        for i in self.tensorDict.keys():
+            for j in self.tensorDict[i].keys():
+                for k in self.tensorDict[i][j].keys():
+                    self.tensorDict[i][j][k] = 1 + math.log(self.tensorDict[i][j][k])
+
+
+# Global weighting functions
+
+    # Positive Pointwise Mutual Information
+    def calculate3PMI(self):
+        try:
+            self.instance1ProbabilityList
+            self.instance2ProbabilityList
+            self.instance3ProbabilityList
+        except AttributeError:
+            self.__calculateMarginalProbabilities()
+
+        tensorDictPMI = {}
+        for i in self.tensorDict.keys():
+            for j in self.tensorDict[i].keys():
+                for k in self.tensorDict[i][j].keys():
+                    PMIValue = math.log( ( self.tensorDict[i][j][k] /
+                                           self.frequencyTotal ) /
+                                         ( self.instance1ProbabilityList[i] *
+                                           self.instance2ProbabilityList[j] *
+                                           self.instance3ProbabilityList[j] ) )
+                    if PMIValue > 0:
+                        try:
+                            tensorDictPMI[i][j][k] = PMIValue
+                        except KeyError:
+                            try:
+                                tensorDictPMI[i][j] = {}
+                                tensorDictPMI[i][j][k] = PMIValue
+                            except KeyError:
+                                tensorDictPMI[i] = {}
+                                tensorDictPMI[i][j] = {}
+                                tensorDictPMI[i][j][k] = PMIValue
+        self.tensorDict = tensorDictPMI
+        #self.applyInstanceFeatureCutoff()
+
+    # def calculate3LMI(self):
+    #     try:
+    #         self.instanceProbabilityList
+    #         self.featureProbabilityList
+    #     except AttributeError:
+    #         self.__calculateMarginalProbabilities()
+
+    #     vectorListLMI = [ {} for i in range(len(self.instances))]
+    #     for i in range(len(self.vectorList)):
+    #         for j in self.vectorList[i]:
+    #             LMIValue = ( (self.vectorList[i][j] / self.frequencyTotal) *
+    #                          math.log( ( self.vectorList[i][j] /
+    #                                      self.frequencyTotal ) /
+    #                                    ( self.instanceProbabilityList[i] *
+    #                                      self.featureProbabilityList[j] ) ) )
+    #             if LMIValue > 0:
+    #                 vectorListLMI[i][j] = LMIValue
+    #     self.vectorList = vectorListLMI
+    #     self.applyInstanceFeatureCutoff()
+
+    def __calculateSumFrequencies(self):
+        instance1FrequencyList = [float(0) for i in range(len(self.instances1))]
+        instance2FrequencyList = [float(0) for i in range(len(self.instances2))]
+        instance3FrequencyList = [float(0) for i in range(len(self.instances3))]
+
+        frequencyTotal = float(0)
+        for i in self.tensorDict.keys():
+            for j in self.tensorDict[i].keys():
+                for k in self.tensorDict[i][j].keys():
+                    instance1FrequencyList[i] += self.tensorDict[i][j][k]
+                    instance2FrequencyList[j] += self.tensorDict[i][j][k]
+                    instance3FrequencyList[k] += self.tensorDict[i][j][k]
+                    frequencyTotal += self.tensorDict[i][j][k]
+        self.instance1FrequencyList = instance1FrequencyList
+        self.instance2FrequencyList = instance2FrequencyList
+        self.instance3FrequencyList = instance3FrequencyList
+        self.frequencyTotal = frequencyTotal       
+
+    def __calculateMarginalProbabilities(self):
+        try:
+            self.instance1FrequencyList
+            self.instance2FrequencyList
+            self.instance3FrequencyList
+
+        except AttributeError:
+            self.__calculateSumFrequencies()
+
+        instance1ProbabilityList = [ (self.instance1FrequencyList[i] / self.frequencyTotal)
+                                    for i in range(len(self.instance1FrequencyList)) ]
+        instance2ProbabilityList = [ (self.instance2FrequencyList[i] / self.frequencyTotal)
+                                     for i in range(len(self.instance2FrequencyList)) ]
+        instance3ProbabilityList = [ (self.instance3FrequencyList[i] / self.frequencyTotal)
+                                     for i in range(len(self.instance3FrequencyList)) ]
+
+        self.instance1ProbabilityList = instance1ProbabilityList
+        self.instance2ProbabilityList = instance2ProbabilityList
+        self.instance3ProbabilityList = instance3ProbabilityList
+

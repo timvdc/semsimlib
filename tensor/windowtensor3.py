@@ -32,7 +32,7 @@ class WindowTensor3(Tensor3):
         self.fill(textStream, window)
 
         if cleanup:
-            #self.applyValueCutoff()
+            self.applyValueCutoff()
             #self.applyInstance123Cutoff()
             pass
 
