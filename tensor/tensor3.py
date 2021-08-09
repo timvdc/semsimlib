@@ -164,7 +164,7 @@ class Tensor3:
                                            self.frequencyTotal ) /
                                          ( self.instance1ProbabilityList[i] *
                                            self.instance2ProbabilityList[j] *
-                                           self.instance3ProbabilityList[j] ) )
+                                           self.instance3ProbabilityList[k] ) )
                     if PMIValue > 0:
                         try:
                             tensorDictPMI[i][j][k] = PMIValue
