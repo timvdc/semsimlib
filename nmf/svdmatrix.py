@@ -48,7 +48,7 @@ class SVDMatrix:
     def getTopWordsDim(self,ndim,nwords=20):
         #show list of words with highest value for particular
         #dimension
-        if hasattr(self, 'Wnorm'):
+        if not hasattr(self, 'Wnorm'):
             raise ValueError('make sure to normalize NMF result')
         dimList = [(self.Wnorm[i,ndim],i) for i in range(len(self.instances))]
         dimList.sort()
