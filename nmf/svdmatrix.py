@@ -38,7 +38,7 @@ class SVDMatrix:
         self.S = []
         self.Vt = []
 
-        self.Wnorm = []
+        #self.Wnorm = []
 
     def compute(self):
         result = scipy.sparse.linalg.svds(self.matrix, self.rdim)
@@ -48,7 +48,7 @@ class SVDMatrix:
     def getTopWordsDim(self,ndim,nwords=20):
         #show list of words with highest value for particular
         #dimension
-        if self.Wnorm == []:
+        if hasattr(self, 'Wnorm'):
             raise ValueError('make sure to normalize NMF result')
         dimList = [(self.Wnorm[i,ndim],i) for i in range(len(self.instances))]
         dimList.sort()
